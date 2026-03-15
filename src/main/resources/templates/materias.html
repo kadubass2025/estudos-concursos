@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Matérias — Estudos Concursos</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body { background-color: #f0f4f8; }
+        .card-header-custom { background-color: #1B3A6B; color: white; }
+        .badge-alta    { background-color: #C0392B; }
+        .badge-media   { background-color: #E67E22; }
+        .badge-baixa   { background-color: #27AE60; }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<div class="container-fluid py-4 px-4">
+
+    <h2 class="fw-bold mb-4" style="color: #1B3A6B;">📚 Gerenciar Matérias</h2>
+
+    <!-- Mensagem de sucesso -->
+    <div th:if="${sucesso}" class="alert alert-success alert-dismissible fade show">
+        <span th:text="${sucesso}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- Formulário -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header fw-bold card-header-custom">
+                    ➕ Nova Matéria
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/materias/salvar}" th:object="${materia}" method="post">
+                        <input type="hidden" th:field="*{id}">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nome da Matéria</label>
+                            <input type="text" class="form-control"
+                                   th:field="*{nome}" placeholder="Ex: Direito Constitucional" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Prioridade</label>
+                            <select class="form-select" th:field="*{prioridade}">
+                                <option value="">Selecione...</option>
+                                <option th:each="p : ${prioridades}"
+                                        th:value="${p}" th:text="${p}">
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Peso na Prova (%)</label>
+                            <input type="number" class="form-control"
+                                   th:field="*{peso}" placeholder="Ex: 15" min="1" max="100">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Total de Assuntos</label>
+                            <input type="number" class="form-control"
+                                   th:field="*{totalAssuntos}" placeholder="Ex: 40" min="1">
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary fw-bold">
+                                💾 Salvar Matéria
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Matérias -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header fw-bold card-header-custom">
+                    📋 Matérias Cadastradas
+                </div>
+                <div class="card-body p-0">
+                    <div th:if="${#lists.isEmpty(materias)}"
+                         class="text-muted text-center py-4">
+                        Nenhuma matéria cadastrada ainda.
+                    </div>
+                    <table class="table table-hover mb-0"
+                           th:if="${!#lists.isEmpty(materias)}">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Matéria</th>
+                            <th>Prioridade</th>
+                            <th>Peso</th>
+                            <th>Assuntos</th>
+                            <th>Progresso</th>
+                            <th>Ações</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="m : ${materias}">
+                            <td class="fw-bold" th:text="${m.nome}">-</td>
+                            <td>
+                  <span class="badge"
+                        th:classappend="${m.prioridade?.name() == 'ALTA'} ? 'badge-alta' :
+                                        (${m.prioridade?.name() == 'MEDIA'} ? 'badge-media' :
+                                        'badge-baixa')"
+                        th:text="${m.prioridade}">-</span>
+                            </td>
+                            <td th:text="${m.peso} + '%'">-</td>
+                            <td th:text="${m.assuntosEstudados} + '/' + ${m.totalAssuntos}">-</td>
+                            <td style="min-width: 120px;">
+                                <div class="progress" style="height: 10px;">
+                                    <div class="progress-bar"
+                                         th:style="'width: ' + ${m.progresso} + '%; background-color: #2E6DA4;'"
+                                         role="progressbar">
+                                    </div>
+                                </div>
+                                <small th:text="${#numbers.formatDecimal(m.progresso,1,1)} + '%'">0%</small>
+                            </td>
+                            <td>
+                                <a th:href="@{/materias/editar/{id}(id=${m.id})}"
+                                   class="btn btn-sm btn-warning me-1">✏️</a>
+                                <a th:href="@{/materias/deletar/{id}(id=${m.id})}"
+                                   class="btn btn-sm btn-danger"
+                                   onclick="return confirm('Deseja deletar esta matéria?')">🗑️</a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
+</script>
+<div th:replace="~{fragments/cronometro :: cronometro}"></div>
+</body>
+</html>

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ciclo de Estudos — Estudos Concursos</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f0f4f8; }
+        .card-header-custom { background-color: #1A6B3A; color: white; }
+        .badge-alta  { background-color: #C0392B; }
+        .badge-media { background-color: #E67E22; }
+        .badge-baixa { background-color: #27AE60; }
+        .guia-step {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          margin-bottom: 14px;
+        }
+        .guia-numero {
+          background-color: #1A6B3A;
+          color: white;
+          border-radius: 50%;
+          width: 30px;
+          height: 30px;
+          min-width: 30px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 0.9rem;
+        }
+        .guia-texto {
+          font-size: 0.9rem;
+          color: #2C3E50;
+          padding-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<div class="container-fluid py-4 px-4">
+
+    <h2 class="fw-bold mb-4" style="color: #1A6B3A;">🔄 Ciclo de Estudos</h2>
+
+    <!-- Mensagem de sucesso -->
+    <div th:if="${sucesso}"
+         class="alert alert-success alert-dismissible fade show">
+        <span th:text="${sucesso}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Cards de resumo -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm p-3"
+                 style="border-left: 5px solid #1A6B3A;">
+                <div class="text-muted" style="font-size: 0.85rem;">
+                    ⏱ Total de Minutos no Ciclo
+                </div>
+                <div class="fw-bold fs-4" style="color: #1A6B3A;"
+                     th:text="${totalMinutos} + ' min'">0 min</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm p-3"
+                 style="border-left: 5px solid #1A6B3A;">
+                <div class="text-muted" style="font-size: 0.85rem;">
+                    📅 Duração Total do Ciclo
+                </div>
+                <div class="fw-bold fs-4" style="color: #1A6B3A;"
+                     th:text="${duracaoDias} + ' dias'">0 dias</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm p-3"
+                 style="border-left: 5px solid #2E6DA4;">
+                <div class="text-muted" style="font-size: 0.85rem;">
+                    📚 Matérias no Ciclo
+                </div>
+                <div class="fw-bold fs-4" style="color: #2E6DA4;"
+                     th:text="${#lists.size(itens)}">0</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm p-3"
+                 style="border-left: 5px solid #E67E22;">
+                <div class="text-muted" style="font-size: 0.85rem;">
+                    ⏰ Média de Tempo por Matéria
+                </div>
+                <div class="fw-bold fs-4" style="color: #E67E22;"
+                     th:text="${#lists.size(itens) > 0}
+                       ? ${totalMinutos / #lists.size(itens)} + ' min'
+                       : '0 min'">0 min</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulário -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header fw-bold card-header-custom">
+            ➕ Adicionar Matéria ao Ciclo
+        </div>
+        <div class="card-body">
+            <form th:action="@{/ciclo/salvar}"
+                  th:object="${cicloItem}" method="post">
+                <input type="hidden" th:field="*{id}">
+                <div class="row g-3">
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Matéria</label>
+                        <select class="form-select" name="materia.id" required>
+                            <option value="">Selecione...</option>
+                            <option th:each="m : ${materias}"
+                                    th:value="${m.id}"
+                                    th:text="${m.nome}"
+                                    th:selected="${cicloItem.materia != null
+                                     and cicloItem.materia.id == m.id}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Tempo (min)</label>
+                        <input type="number" class="form-control"
+                               th:field="*{tempoPlanejado}"
+                               placeholder="Ex: 60" min="1" required>
+                    </div>
+
+                    <div class="col-md-1">
+                        <label class="form-label fw-bold">Dias</label>
+                        <input type="number" class="form-control"
+                               th:field="*{diasNoCiclo}"
+                               placeholder="1" min="1" required>
+                    </div>
+
+                    <div class="col-md-1">
+                        <label class="form-label fw-bold">Ordem</label>
+                        <input type="number" class="form-control"
+                               th:field="*{ordem}"
+                               placeholder="1" min="1" required>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Prioridade</label>
+                        <select class="form-select" th:field="*{prioridade}">
+                            <option value="">Selecione...</option>
+                            <option th:each="p : ${prioridades}"
+                                    th:value="${p}" th:text="${p}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Data de Início</label>
+                        <input type="date" class="form-control"
+                               th:field="*{dataInicioCiclo}">
+                    </div>
+
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn fw-bold w-100"
+                                style="background-color: #1A6B3A; color: white;">
+                            💾 Salvar
+                        </button>
+                    </div>
+
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Gráfico + Guia de uso -->
+    <div class="row g-4 mb-4">
+
+        <!-- Gráfico circular -->
+        <div class="col-md-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-header fw-bold card-header-custom">
+                    📊 Distribuição do Tempo no Ciclo
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <div th:if="${#lists.isEmpty(itens)}"
+                         class="text-muted text-center py-4">
+                        Adicione matérias ao ciclo para ver o gráfico
+                    </div>
+                    <div th:if="${!#lists.isEmpty(itens)}"
+                         style="width: 100%; max-width: 350px;">
+                        <canvas id="graficoCiclo"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guia de uso -->
+        <div class="col-md-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header fw-bold"
+                     style="background-color: #2E6DA4; color: white;">
+                    📖 Modo de Usar o Ciclo de Estudos
+                </div>
+                <div class="card-body">
+
+                    <div class="guia-step">
+                        <div class="guia-numero">1</div>
+                        <div class="guia-texto">
+                            <strong>Adicione as matérias do seu edital</strong> — Vá até
+                            a aba <a href="/materias">Matérias</a> e cadastre todas as
+                            matérias que você precisa estudar para o concurso.
+                        </div>
+                    </div>
+
+                    <div class="guia-step">
+                        <div class="guia-numero">2</div>
+                        <div class="guia-texto">
+                            <strong>Monte a sequência do ciclo</strong> — Use o formulário
+                            acima para adicionar cada matéria ao ciclo. Defina a
+                            <strong>Ordem</strong> (1, 2, 3...) para determinar a sequência
+                            em que as matérias serão estudadas.
+                        </div>
+                    </div>
+
+                    <div class="guia-step">
+                        <div class="guia-numero">3</div>
+                        <div class="guia-texto">
+                            <strong>Defina o tempo de cada matéria</strong> — No campo
+                            <strong>Tempo (min)</strong> coloque quantos minutos você vai
+                            dedicar a essa matéria por dia. Ex: Português = 60 min,
+                            Constitucional = 90 min.
+                        </div>
+                    </div>
+
+                    <div class="guia-step">
+                        <div class="guia-numero">4</div>
+                        <div class="guia-texto">
+                            <strong>Defina os dias no ciclo</strong> — No campo
+                            <strong>Dias</strong> coloque quantos dias consecutivos essa
+                            matéria fica no ciclo. Matérias de alta prioridade geralmente
+                            ficam com <strong>1 dia</strong>. Matérias secundárias podem
+                            ter <strong>2 dias</strong>.
+                        </div>
+                    </div>
+
+                    <div class="guia-step">
+                        <div class="guia-numero">5</div>
+                        <div class="guia-texto">
+                            <strong>Defina a data de início</strong> — Coloque a data em
+                            que você vai começar o ciclo. O sistema calcula automaticamente
+                            a <strong>Próxima Sessão</strong> de cada matéria com base
+                            na ordem e nos dias do ciclo.
+                        </div>
+                    </div>
+
+                    <div class="guia-step">
+                        <div class="guia-numero">6</div>
+                        <div class="guia-texto">
+                            <strong>Repita o ciclo</strong> — Ao terminar a última matéria
+                            da sequência, volte para a primeira e repita. Quando terminar
+                            uma sessão, registre seu estudo na aba
+                            <a href="/registros">Registro Diário</a> para acompanhar
+                            seu progresso!
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning p-2 mt-2"
+                         style="font-size: 0.85rem;">
+                        💡 <strong>Dica:</strong> Um ciclo ideal tem entre 5 e 10
+                        matérias com duração total de 5 a 10 dias. Isso garante que
+                        você reveja cada matéria com frequência suficiente para fixar
+                        o conteúdo!
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Tabela do Ciclo -->
+    <div class="card shadow-sm">
+        <div class="card-header fw-bold card-header-custom">
+            📋 Sequência do Ciclo
+        </div>
+        <div class="card-body p-0">
+            <div th:if="${#lists.isEmpty(itens)}"
+                 class="text-muted text-center py-4">
+                Nenhuma matéria no ciclo ainda. Use o formulário acima!
+            </div>
+            <div class="table-responsive"
+                 th:if="${!#lists.isEmpty(itens)}">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th>Ordem</th>
+                        <th>Matéria</th>
+                        <th>Tempo</th>
+                        <th>Dias no Ciclo</th>
+                        <th>Próxima Sessão</th>
+                        <th>Prioridade</th>
+                        <th>Ações</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="item : ${itens}">
+                        <td class="text-center fw-bold"
+                            th:text="${item.ordem}">-</td>
+                        <td class="fw-bold"
+                            th:text="${item.materia?.nome}">-</td>
+                        <td th:text="${item.tempoPlanejado} + ' min'">-</td>
+                        <td class="text-center"
+                            th:text="${item.diasNoCiclo}">-</td>
+                        <td>
+                <span th:if="${item.proximaSessao != null}"
+                      class="badge bg-primary"
+                      th:text="${#temporals.format(
+                                 item.proximaSessao,'dd/MM/yyyy')}">
+                </span>
+                            <span th:if="${item.proximaSessao == null}"
+                                  class="text-muted" style="font-size: 0.85rem;">
+                  Defina a data de início
+                </span>
+                        </td>
+                        <td>
+                <span th:if="${item.prioridade != null}"
+                      class="badge"
+                      th:classappend="${item.prioridade.name() == 'ALTA'}
+                                      ? 'badge-alta' :
+                                      (${item.prioridade.name() == 'MEDIA'}
+                                      ? 'badge-media' : 'badge-baixa')"
+                      th:text="${item.prioridade}">-</span>
+                        </td>
+                        <td>
+                            <a th:href="@{/ciclo/deletar/{id}(id=${item.id})}"
+                               class="btn btn-sm btn-danger"
+                               onclick="return confirm('Deseja remover do ciclo?')">
+                                🗑️
+                            </a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Dados para o gráfico via Thymeleaf -->
+<div id="dadosGrafico" style="display:none;"
+     th:if="${!#lists.isEmpty(itens)}">
+  <span th:each="item : ${itens}"
+        th:attr="data-label=${item.materia?.nome},
+                 data-value=${item.tempoPlanejado}">
+  </span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Lê os dados do gráfico gerados pelo Thymeleaf
+    const dadosDiv = document.getElementById('dadosGrafico');
+    if (dadosDiv) {
+      const spans = dadosDiv.querySelectorAll('span');
+      const labels = [];
+      const valores = [];
+      const cores = [
+        '#1B3A6B','#2E6DA4','#27AE60','#E67E22',
+        '#C0392B','#6C3483','#1A6B3A','#D4AC0D',
+        '#2C3E50','#16A085'
+      ];
+
+      spans.forEach(span => {
+        labels.push(span.getAttribute('data-label'));
+        valores.push(parseInt(span.getAttribute('data-value')));
+      });
+
+      const ctx = document.getElementById('graficoCiclo').getContext('2d');
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: valores,
+            backgroundColor: cores.slice(0, labels.length),
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: { size: 11 },
+                padding: 10
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return context.label + ': ' + context.raw + ' min';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+</script>
+<div th:replace="~{fragments/cronometro :: cronometro}"></div>
+</body>
+</html>

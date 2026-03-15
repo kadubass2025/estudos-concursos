@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard — Estudos Concursos</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f0f4f8; }
+        .card-kpi { border-left: 5px solid; border-radius: 8px; }
+        .kpi-azul    { border-color: #1B3A6B; }
+        .kpi-verde   { border-color: #27AE60; }
+        .kpi-roxo    { border-color: #6C3483; }
+        .kpi-laranja { border-color: #E67E22; }
+        .kpi-valor   { font-size: 2rem; font-weight: bold; }
+
+        /* Constância */
+        .constancia-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 5px;
+        }
+        .constancia-dia {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.7rem;
+          font-weight: bold;
+          cursor: default;
+        }
+        .dia-estudou  { background-color: #27AE60; color: white; }
+        .dia-faltou   { background-color: #FADBD8; color: #C0392B; border: 1px solid #C0392B; }
+        .dia-hoje     { border: 2px solid #1B3A6B !important; }
+        .dia-futuro   { background-color: #ECF0F1; color: #BDC3C7; }
+
+        /* Painel disciplinas */
+        .pct-badge {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 0.8rem;
+          font-weight: bold;
+          color: white;
+        }
+        .pct-verde   { background-color: #27AE60; }
+        .pct-amarelo { background-color: #E67E22; }
+        .pct-vermelho{ background-color: #C0392B; }
+
+        /* Barra de meta */
+        .meta-label {
+          font-size: 0.85rem;
+          font-weight: bold;
+          color: #2C3E50;
+        }
+        .meta-valores {
+          font-size: 0.8rem;
+          color: #7F8C8D;
+        }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<div class="container-fluid py-4 px-4">
+
+    <!-- Título -->
+    <div class="row mb-3">
+        <div class="col">
+            <h2 class="fw-bold" style="color: #1B3A6B;">📈 Dashboard</h2>
+            <p class="text-muted mb-0">Visão geral dos seus estudos</p>
+        </div>
+    </div>
+
+    <!-- ── CONSTÂNCIA ─────────────────────────────────────────────────── -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+          <span class="fw-bold" style="color: #1B3A6B;">
+            🔥 CONSTÂNCIA NOS ESTUDOS
+          </span>
+                    <span class="ms-3 text-muted" style="font-size: 0.9rem;">
+            Você está há
+            <strong th:text="${diasSequencia}">0</strong>
+            dia(s) sem falhar! Seu recorde é de
+            <strong th:text="${recordeDias}">0</strong> dias.
+          </span>
+                </div>
+            </div>
+            <div class="constancia-grid">
+                <div th:each="dia : ${constancia}"
+                     th:classappend="${dia['estudou']} ? 'dia-estudou' :
+                              'dia-faltou'"
+                     th:class="'constancia-dia ' +
+                        (${dia['estudou']} ? 'dia-estudou' : 'dia-faltou') +
+                        (${dia['hoje']} ? ' dia-hoje' : '')"
+                     th:text="${dia['diaMes']}"
+                     th:title="${dia['data']}">
+                </div>
+            </div>
+            <div class="mt-2 d-flex gap-3" style="font-size: 0.8rem;">
+        <span>
+          <span class="constancia-dia dia-estudou d-inline-flex"
+                style="width:16px;height:16px;font-size:0;">
+          </span>
+          Estudou
+        </span>
+                <span>
+          <span class="constancia-dia dia-faltou d-inline-flex"
+                style="width:16px;height:16px;font-size:0;">
+          </span>
+          Não estudou
+        </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── KPIs ──────────────────────────────────────────────────────── -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card card-kpi kpi-azul shadow-sm p-3">
+                <div class="text-muted" style="font-size:0.85rem;">
+                    ⏱ Total de Horas Estudadas
+                </div>
+                <div class="kpi-valor" style="color:#1B3A6B;"
+                     th:text="${totalHoras} + 'h'">0h</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-kpi kpi-verde shadow-sm p-3">
+                <div class="text-muted" style="font-size:0.85rem;">
+                    📖 Questões Resolvidas
+                </div>
+                <div class="kpi-valor" style="color:#27AE60;"
+                     th:text="${totalQuestoes}">0</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-kpi kpi-roxo shadow-sm p-3">
+                <div class="text-muted" style="font-size:0.85rem;">
+                    🎯 % Médio de Acertos
+                </div>
+                <div class="kpi-valor" style="color:#6C3483;"
+                     th:text="${percentualAcerto} + '%'">0%</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-kpi kpi-laranja shadow-sm p-3">
+                <div class="text-muted" style="font-size:0.85rem;">
+                    🔁 Revisões Pendentes Hoje
+                </div>
+                <div class="kpi-valor" style="color:#E67E22;"
+                     th:text="${quantidadeRevisoes}">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── PAINEL DISCIPLINAS + METAS + GRÁFICO SEMANAL ─────────────── -->
+    <div class="row g-4 mb-4">
+
+        <!-- Painel de disciplinas -->
+        <div class="col-md-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header fw-bold"
+                     style="background-color:#1B3A6B; color:white;">
+                    📊 PAINEL DE DISCIPLINAS
+                </div>
+                <div class="card-body p-0">
+                    <div th:if="${#lists.isEmpty(painelDisciplinas)}"
+                         class="text-muted text-center py-4">
+                        Nenhum registro ainda.
+                        <a th:href="@{/registros}">Registrar agora</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0"
+                               th:if="${!#lists.isEmpty(painelDisciplinas)}">
+                            <thead class="table-light">
+                            <tr>
+                                <th>Disciplina</th>
+                                <th class="text-center">Tempo</th>
+                                <th class="text-center" style="color:#27AE60;">✓</th>
+                                <th class="text-center" style="color:#C0392B;">✗</th>
+                                <th class="text-center">Total Q.</th>
+                                <th class="text-center">%</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="d : ${painelDisciplinas}">
+                                <td class="fw-bold" style="font-size:0.9rem;"
+                                    th:text="${d['nome']}">-</td>
+                                <td class="text-center" style="font-size:0.9rem;"
+                                    th:text="${d['totalMin'] > 0} ? ${d['tempo']} : '-'">
+                                    -
+                                </td>
+                                <td class="text-center fw-bold"
+                                    style="color:#27AE60; font-size:0.9rem;"
+                                    th:text="${d['acertos'] > 0} ? ${d['acertos']} : '0'">
+                                    0
+                                </td>
+                                <td class="text-center fw-bold"
+                                    style="color:#C0392B; font-size:0.9rem;"
+                                    th:text="${d['erros'] > 0} ? ${d['erros']} : '0'">
+                                    0
+                                </td>
+                                <td class="text-center" style="font-size:0.9rem;"
+                                    th:text="${d['totalQuestoes']}">0</td>
+                                <td class="text-center">
+                    <span class="pct-badge"
+                          th:classappend="${d['percentual'] >= 70}
+                                          ? 'pct-verde' :
+                                          (${d['percentual']} >= 50
+                                          ? 'pct-amarelo' : 'pct-vermelho')"
+                          th:text="${d['totalQuestoes'] > 0}
+                                    ? ${d['percentual']} + '%' : '-'">
+                      -
+                    </span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metas + Gráfico semanal -->
+        <div class="col-md-5">
+
+            <!-- Metas semanais -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-bold"
+                     style="background-color:#27AE60; color:white;">
+                    🎯 METAS DE ESTUDO SEMANAL
+                </div>
+                <div class="card-body">
+
+                    <!-- Meta horas -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span class="meta-label">⏱ Horas de Estudo</span>
+                            <span class="meta-valores"
+                                  th:text="${horasEstudadasSemana} + 'h / '
+                               + ${metaHorasSemana} + 'h'">
+                0h / 25h
+              </span>
+                        </div>
+                        <div class="progress mt-1" style="height:14px;">
+                            <div class="progress-bar"
+                                 style="background-color:#27AE60;"
+                                 th:style="'width: ' +
+                     ${horasEstudadasSemana >= metaHorasSemana ? 100 :
+                       (horasEstudadasSemana / metaHorasSemana * 100)} + '%;
+                     background-color: #27AE60;'"
+                                 role="progressbar">
+                            </div>
+                        </div>
+                        <small class="text-muted"
+                               th:text="${horasEstudadasSemana >= metaHorasSemana}
+                              ? '✅ Meta atingida!'
+                              : (${metaHorasSemana - horasEstudadasSemana})
+                                + 'h restantes'">
+                        </small>
+                    </div>
+
+                    <!-- Meta questões -->
+                    <div>
+                        <div class="d-flex justify-content-between">
+                            <span class="meta-label">📖 Questões</span>
+                            <span class="meta-valores"
+                                  th:text="${questoesSemana} + ' / '
+                               + ${metaQuestoesSemana}">
+                0 / 135
+              </span>
+                        </div>
+                        <div class="progress mt-1" style="height:14px;">
+                            <div class="progress-bar"
+                                 style="background-color:#6C3483;"
+                                 th:style="'width: ' +
+                     ${questoesSemana >= metaQuestoesSemana ? 100 :
+                       (questoesSemana / metaQuestoesSemana * 100)} + '%;
+                     background-color: #6C3483;'"
+                                 role="progressbar">
+                            </div>
+                        </div>
+                        <small class="text-muted"
+                               th:text="${questoesSemana >= metaQuestoesSemana}
+                              ? '✅ Meta atingida!'
+                              : (${metaQuestoesSemana - questoesSemana})
+                                + ' questões restantes'">
+                        </small>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Gráfico semanal -->
+            <div class="card shadow-sm">
+                <div class="card-header fw-bold"
+                     style="background-color:#2E6DA4; color:white;">
+                    📈 ESTUDO SEMANAL
+                </div>
+                <div class="card-body">
+                    <canvas id="graficoSemanal" height="160"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ── PROGRESSO MATÉRIAS + REVISÕES ────────────────────────────── -->
+    <div class="row g-3 mb-4">
+
+        <!-- Progresso -->
+        <div class="col-md-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header fw-bold"
+                     style="background-color:#1B3A6B; color:white;">
+                    📚 Progresso por Matéria
+                </div>
+                <div class="card-body">
+                    <div th:if="${#lists.isEmpty(materias)}"
+                         class="text-muted text-center py-3">
+                        Nenhuma matéria cadastrada ainda.
+                        <a th:href="@{/materias}">Cadastrar agora</a>
+                    </div>
+                    <div th:each="materia : ${materias}" class="mb-3">
+                        <div class="d-flex justify-content-between">
+              <span class="fw-bold" style="font-size:0.9rem;"
+                    th:text="${materia.nome}">Matéria</span>
+                            <span class="text-muted" style="font-size:0.85rem;"
+                                  th:text="${#numbers.formatDecimal(
+                               materia.progresso,1,1)} + '%'">
+                0%
+              </span>
+                        </div>
+                        <div class="progress" style="height:10px;">
+                            <div class="progress-bar"
+                                 th:style="'width: ' + ${materia.progresso} +
+                              '%; background-color: #2E6DA4;'"
+                                 role="progressbar">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revisões pendentes -->
+        <div class="col-md-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-header fw-bold"
+                     style="background-color:#C0392B; color:white;">
+                    🔁 Revisões Pendentes Hoje
+                </div>
+                <div class="card-body p-0">
+                    <div th:if="${#lists.isEmpty(revisoesPendentes)}"
+                         class="text-muted text-center py-4">
+                        ✅ Nenhuma revisão pendente hoje!
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li th:each="revisao : ${revisoesPendentes}"
+                            class="list-group-item"
+                            style="background-color:#FADBD8;">
+                            <div class="fw-bold" style="font-size:0.9rem;"
+                                 th:text="${revisao.assunto}">Assunto</div>
+                            <small class="text-muted"
+                                   th:text="${revisao.materia?.nome}">Matéria</small>
+                            <div class="mt-1">
+                                <a th:if="${revisao.statusRev1.name() == 'PENDENTE'}"
+                                   th:href="@{/revisoes/concluir/{id}/1(id=${revisao.id})}"
+                                   class="btn btn-sm btn-success me-1">✅ 7d</a>
+                                <a th:if="${revisao.statusRev2.name() == 'PENDENTE'}"
+                                   th:href="@{/revisoes/concluir/{id}/2(id=${revisao.id})}"
+                                   class="btn btn-sm btn-success me-1">✅ 15d</a>
+                                <a th:if="${revisao.statusRev3.name() == 'PENDENTE'}"
+                                   th:href="@{/revisoes/concluir/{id}/3(id=${revisao.id})}"
+                                   class="btn btn-sm btn-success">✅ 30d</a>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ── ÚLTIMOS REGISTROS + INFO ─────────────────────────────────── -->
+    <div class="row g-3">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header fw-bold"
+                     style="background-color:#6C3483; color:white;">
+                    📝 Últimos Registros de Estudo
+                </div>
+                <div class="card-body p-0">
+                    <div th:if="${#lists.isEmpty(ultimosRegistros)}"
+                         class="text-muted text-center py-4">
+                        Nenhum registro ainda.
+                        <a th:href="@{/registros}">Registrar agora</a>
+                    </div>
+                    <table class="table table-hover mb-0"
+                           th:if="${!#lists.isEmpty(ultimosRegistros)}">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Data</th>
+                            <th>Matéria</th>
+                            <th>Assunto</th>
+                            <th>Tipo</th>
+                            <th>Tempo</th>
+                            <th>Acerto</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="r : ${ultimosRegistros}">
+                            <td th:text="${#temporals.format(r.data,'dd/MM/yyyy')}">-</td>
+                            <td th:text="${r.materia?.nome}">-</td>
+                            <td th:text="${r.assunto}">-</td>
+                            <td th:text="${r.tipo}">-</td>
+                            <td th:text="${r.tempoReal} + ' min'">-</td>
+                            <td th:text="${#numbers.formatDecimal(
+                               r.percentualAcerto,1,1)} + '%'">-</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer text-end">
+                    <a th:href="@{/registros}" class="btn btn-sm btn-primary">
+                        Ver todos →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-3"
+                 style="border-left:5px solid #27AE60;">
+                <div class="card-body">
+                    <div class="text-muted">🏆 Matéria Mais Estudada</div>
+                    <div class="fw-bold fs-5"
+                         th:text="${materiaMaisEstudada}">-</div>
+                </div>
+            </div>
+            <div class="card shadow-sm mb-3"
+                 style="border-left:5px solid #1B3A6B;">
+                <div class="card-body">
+                    <div class="text-muted">📚 Total de Matérias</div>
+                    <div class="fw-bold fs-5"
+                         th:text="${totalMaterias}">0</div>
+                </div>
+            </div>
+            <div class="d-grid gap-2">
+                <a th:href="@{/registros}" class="btn btn-primary">
+                    ➕ Novo Registro
+                </a>
+                <a th:href="@{/revisoes}" class="btn btn-danger">
+                    ➕ Nova Revisão
+                </a>
+                <a th:href="@{/ciclo}" class="btn btn-success">
+                    🔄 Ver Ciclo
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Dados para o gráfico semanal -->
+<div id="dadosSemana" style="display:none;">
+  <span th:each="d : ${dadosSemanais}"
+        th:attr="data-dia=${d['dia']},
+                 data-horas=${d['horas']},
+                 data-questoes=${d['questoes']}">
+  </span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const dadosDiv = document.getElementById('dadosSemana');
+    if (dadosDiv) {
+      const spans = dadosDiv.querySelectorAll('span');
+      const dias = [], horas = [], questoes = [];
+
+      spans.forEach(s => {
+        dias.push(s.getAttribute('data-dia'));
+        horas.push(parseFloat(s.getAttribute('data-horas')));
+        questoes.push(parseInt(s.getAttribute('data-questoes')));
+      });
+
+      const ctx = document.getElementById('graficoSemanal').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: dias,
+          datasets: [
+            {
+              label: 'Horas',
+              data: horas,
+              backgroundColor: '#27AE60',
+              borderRadius: 4,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Questões',
+              data: questoes,
+              backgroundColor: '#6C3483',
+              borderRadius: 4,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { font: { size: 11 } }
+            }
+          },
+          scales: {
+            y: {
+              type: 'linear',
+              position: 'left',
+              title: { display: true, text: 'Horas' },
+              ticks: { font: { size: 10 } }
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              title: { display: true, text: 'Questões' },
+              grid: { drawOnChartArea: false },
+              ticks: { font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+</script>
+<div th:replace="~{fragments/cronometro :: cronometro}"></div>
+</body>
+</html>

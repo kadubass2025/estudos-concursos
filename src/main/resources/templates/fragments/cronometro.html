@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="cronometro">
+
+    <!-- Widget flutuante -->
+    <div id="cronometro-widget" style="
+       position:fixed; bottom:24px; right:24px; z-index:9999;
+       width:310px; background:white; border-radius:16px;
+       box-shadow:0 8px 32px rgba(0,0,0,0.18);
+       border:2px solid #1B3A6B; display:none;">
+
+        <!-- Header -->
+        <div style="background:#1B3A6B; color:white; padding:10px 14px;
+                display:flex; justify-content:space-between;
+                align-items:center; border-radius:14px 14px 0 0;">
+      <span style="font-weight:bold; font-size:0.9rem;">
+        ⏱ Cronômetro de Estudo
+      </span>
+            <button onclick="minimizarCrono()"
+                    style="background:none; border:none; color:white;
+                     cursor:pointer; font-size:1.1rem;">
+                ➖
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:14px;">
+
+            <!-- Display -->
+            <div id="cronoDisplay"
+                 style="font-size:2.4rem; font-weight:bold; text-align:center;
+                  color:#1B3A6B; font-family:'Courier New',monospace;
+                  letter-spacing:2px; margin-bottom:12px;">
+                00:00:00
+            </div>
+
+            <!-- Botões -->
+            <div style="display:flex; gap:6px; justify-content:center;
+                  margin-bottom:12px;">
+                <button id="btnIniciar" onclick="iniciarCrono()"
+                        style="background:#27AE60; color:white; border:none;
+                       border-radius:8px; padding:6px 12px;
+                       font-weight:bold; cursor:pointer;">
+                    ▶ Iniciar
+                </button>
+                <button id="btnPausar" onclick="pausarCrono()" disabled
+                        style="background:#E67E22; color:white; border:none;
+                       border-radius:8px; padding:6px 12px;
+                       font-weight:bold; cursor:pointer; opacity:0.5;">
+                    ⏸ Pausar
+                </button>
+                <button id="btnParar" onclick="pararCrono()" disabled
+                        style="background:#C0392B; color:white; border:none;
+                       border-radius:8px; padding:6px 12px;
+                       font-weight:bold; cursor:pointer; opacity:0.5;">
+                    ⏹ Parar
+                </button>
+                <button onclick="resetarCrono()"
+                        style="background:#95A5A6; color:white; border:none;
+                       border-radius:8px; padding:6px 10px;
+                       font-weight:bold; cursor:pointer;">
+                    🔄
+                </button>
+            </div>
+
+            <!-- Matéria -->
+            <div style="margin-bottom:10px;">
+                <label style="font-size:0.78rem; font-weight:bold;
+                      color:#7F8C8D; margin-bottom:4px; display:block;">
+                    📚 Matéria sendo estudada:
+                </label>
+                <select id="cronoMateria"
+                        style="width:100%; border:1px solid #dee2e6;
+                       border-radius:8px; padding:6px 8px;
+                       font-size:0.82rem; color:#2C3E50;">
+                    <option value="">Selecione a matéria...</option>
+                </select>
+            </div>
+
+            <!-- Assunto -->
+            <div style="margin-bottom:10px;">
+                <label style="font-size:0.78rem; font-weight:bold;
+                      color:#7F8C8D; margin-bottom:4px; display:block;">
+                    📝 Assunto estudado:
+                </label>
+                <input type="text" id="cronoAssunto"
+                       placeholder="Ex: Princípios Fundamentais"
+                       style="width:100%; border:1px solid #dee2e6;
+                      border-radius:8px; padding:6px 8px;
+                      font-size:0.82rem; color:#2C3E50;">
+            </div>
+
+            <!-- Resultado -->
+            <div id="cronoResultado" style="display:none; margin-top:10px;">
+                <div style="background:#D5F0E0; border-radius:8px; padding:10px;
+                    text-align:center;">
+                    <div style="font-size:0.85rem; color:#1A6B3A; font-weight:bold;">
+                        ✅ Sessão finalizada!
+                    </div>
+                    <div style="font-size:0.8rem; color:#555; margin-top:4px;">
+                        Tempo: <strong id="tempoRegistrado">00:00:00</strong>
+                    </div>
+                    <div id="cronoSalvoMsg" style="font-size:0.78rem;
+               color:#1A6B3A; margin-top:4px; display:none;">
+                        💾 Salvo no Registro Diário!
+                    </div>
+                    <div style="margin-top:8px; display:flex;
+                      gap:6px; justify-content:center;">
+                        <button onclick="salvarRegistro()"
+                                id="btnSalvarRegistro"
+                                style="background:#1B3A6B; color:white; border:none;
+                           border-radius:8px; padding:5px 12px;
+                           font-size:0.8rem; font-weight:bold;
+                           cursor:pointer;">
+                            💾 Salvar no Registro
+                        </button>
+                        <button onclick="resetarCrono()"
+                                style="background:#95A5A6; color:white; border:none;
+                           border-radius:8px; padding:5px 10px;
+                           font-size:0.8rem; font-weight:bold;
+                           cursor:pointer;">
+                            🔄 Novo
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Botão minimizado -->
+    <div id="cronometro-mini" onclick="maximizarCrono()"
+         style="display:none; position:fixed; bottom:24px; right:24px;
+              z-index:9999; width:56px; height:56px; border-radius:50%;
+              background:#1B3A6B; color:white; cursor:pointer;
+              align-items:center; justify-content:center;
+              font-size:1.6rem; box-shadow:0 4px 16px rgba(0,0,0,0.2);">
+        ⏱
+    </div>
+
+    <script>
+        let cronoIntervalo  = null;
+        let cronoSegundos   = 0;
+        let cronoRodando    = false;
+        let cronoIniciouEm  = null;
+
+        function toggleCronometro() {
+          const widget = document.getElementById('cronometro-widget');
+          const aberto = widget.style.display !== 'none';
+          if (aberto) {
+            widget.style.display = 'none';
+          } else {
+            widget.style.display = 'block';
+            document.getElementById('cronometro-mini').style.display = 'none';
+            carregarMaterias();
+          }
+        }
+
+        function minimizarCrono() {
+          document.getElementById('cronometro-widget').style.display = 'none';
+          const mini = document.getElementById('cronometro-mini');
+          mini.style.display = 'flex';
+        }
+
+        function maximizarCrono() {
+          document.getElementById('cronometro-widget').style.display = 'block';
+          document.getElementById('cronometro-mini').style.display   = 'none';
+        }
+
+        function carregarMaterias() {
+          fetch('/api/materias')
+            .then(res => res.json())
+            .then(data => {
+              const sel = document.getElementById('cronoMateria');
+              sel.innerHTML =
+                '<option value="">Selecione a matéria...</option>';
+              data.forEach(m => {
+                const opt       = document.createElement('option');
+                opt.value       = m.id;
+                opt.textContent = m.nome;
+                sel.appendChild(opt);
+              });
+            })
+            .catch(() => {});
+        }
+
+        function iniciarCrono() {
+          if (cronoRodando) return;
+          cronoRodando  = true;
+          cronoIniciouEm = new Date();
+
+          document.getElementById('cronoDisplay').style.color = '#27AE60';
+          setBtn('btnIniciar', true);
+          setBtn('btnPausar',  false);
+          setBtn('btnParar',   false);
+          document.getElementById('cronoResultado').style.display = 'none';
+
+          cronoIntervalo = setInterval(() => {
+            cronoSegundos++;
+            document.getElementById('cronoDisplay').textContent =
+              formatarTempo(cronoSegundos);
+          }, 1000);
+        }
+
+        function pausarCrono() {
+          if (!cronoRodando) return;
+          cronoRodando = false;
+          clearInterval(cronoIntervalo);
+          document.getElementById('cronoDisplay').style.color = '#E67E22';
+          setBtn('btnIniciar', false);
+          setBtn('btnPausar',  true);
+        }
+
+        function pararCrono() {
+          clearInterval(cronoIntervalo);
+          cronoRodando = false;
+
+          document.getElementById('cronoDisplay').style.color = '#1B3A6B';
+          document.getElementById('tempoRegistrado').textContent =
+            formatarTempo(cronoSegundos);
+          document.getElementById('cronoResultado').style.display = 'block';
+          document.getElementById('cronoSalvoMsg').style.display  = 'none';
+          document.getElementById('btnSalvarRegistro').style.display = 'inline-block';
+
+          setBtn('btnIniciar', false);
+          setBtn('btnPausar',  true);
+          setBtn('btnParar',   true);
+        }
+
+        function resetarCrono() {
+          clearInterval(cronoIntervalo);
+          cronoRodando  = false;
+          cronoSegundos = 0;
+
+          document.getElementById('cronoDisplay').textContent = '00:00:00';
+          document.getElementById('cronoDisplay').style.color = '#1B3A6B';
+          document.getElementById('cronoResultado').style.display = 'none';
+          document.getElementById('cronoAssunto').value = '';
+
+          setBtn('btnIniciar', false);
+          setBtn('btnPausar',  true);
+          setBtn('btnParar',   true);
+        }
+
+        // Salva no Registro Diário via API
+        function salvarRegistro() {
+          const materiaId = document.getElementById('cronoMateria').value;
+          const assunto   = document.getElementById('cronoAssunto').value;
+          const minutos   = Math.ceil(cronoSegundos / 60);
+
+          if (!materiaId) {
+            alert('⚠️ Selecione a matéria antes de salvar!');
+            return;
+          }
+          if (!assunto) {
+            alert('⚠️ Informe o assunto estudado antes de salvar!');
+            return;
+          }
+
+          // Data de hoje no formato yyyy-MM-dd
+          const hoje = new Date().toISOString().split('T')[0];
+
+          const dados = {
+            data:           hoje,
+            materiaId:      parseInt(materiaId),
+            assunto:        assunto,
+            tipo:           'TEORIA',
+            tempoPlanejado: minutos,
+            tempoReal:      minutos,
+            questoesResolvidas: 0,
+            acertos:        0,
+            observacoes:    'Registrado pelo cronômetro'
+          };
+
+          fetch('/api/registro', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(dados)
+          })
+          .then(res => {
+            if (res.ok) {
+              document.getElementById('cronoSalvoMsg').style.display = 'block';
+              document.getElementById('btnSalvarRegistro').style.display = 'none';
+            } else {
+              alert('❌ Erro ao salvar. Tente novamente.');
+            }
+          })
+          .catch(() => alert('❌ Erro ao salvar. Tente novamente.'));
+        }
+
+        function setBtn(id, desabilitado) {
+          const btn = document.getElementById(id);
+          if (!btn) return;
+          btn.disabled      = desabilitado;
+          btn.style.opacity = desabilitado ? '0.5' : '1';
+        }
+
+        function formatarTempo(s) {
+          const h   = Math.floor(s / 3600);
+          const m   = Math.floor((s % 3600) / 60);
+          const seg = s % 60;
+          return String(h).padStart(2,'0') + ':' +
+                 String(m).padStart(2,'0') + ':' +
+                 String(seg).padStart(2,'0');
+        }
+    </script>
+
+</div>
+</body>
+</html>
