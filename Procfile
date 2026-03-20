@@ -1,0 +1,1 @@
+web: java -Xmx400m -Xss512k -XX:+UseSerialGC -Dfile.encoding=UTF-8 -jar target/*.jar

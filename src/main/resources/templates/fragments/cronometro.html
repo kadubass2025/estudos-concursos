@@ -36,6 +36,12 @@
                 00:00:00
             </div>
 
+            <!-- Status -->
+            <div id="cronoStatus" style="text-align:center; font-size:0.8rem;
+           margin-bottom:8px; color:#7F8C8D; display:none;">
+                ⚡ Cronômetro rodando em segundo plano
+            </div>
+
             <!-- Botões -->
             <div style="display:flex; gap:6px; justify-content:center;
                   margin-bottom:12px;">
@@ -100,16 +106,18 @@
                         ✅ Sessão finalizada!
                     </div>
                     <div style="font-size:0.8rem; color:#555; margin-top:4px;">
-                        Tempo: <strong id="tempoRegistrado">00:00:00</strong>
+                        Tempo: <strong id="tempoRegistrado" style="color:#1B3A6B;">
+                        00:00:00
+                    </strong>
                     </div>
-                    <div id="cronoSalvoMsg" style="font-size:0.78rem;
-               color:#1A6B3A; margin-top:4px; display:none;">
+                    <div id="cronoSalvoMsg"
+                         style="font-size:0.78rem; color:#1A6B3A;
+                      margin-top:4px; display:none;">
                         💾 Salvo no Registro Diário!
                     </div>
-                    <div style="margin-top:8px; display:flex;
-                      gap:6px; justify-content:center;">
-                        <button onclick="salvarRegistro()"
-                                id="btnSalvarRegistro"
+                    <div style="margin-top:8px; display:flex; gap:6px;
+                      justify-content:center;">
+                        <button onclick="salvarRegistro()" id="btnSalvarRegistro"
                                 style="background:#1B3A6B; color:white; border:none;
                            border-radius:8px; padding:5px 12px;
                            font-size:0.8rem; font-weight:bold;
@@ -140,40 +148,141 @@
         ⏱
     </div>
 
-    <script>
-        let cronoIntervalo  = null;
-        let cronoSegundos   = 0;
-        let cronoRodando    = false;
-        let cronoIniciouEm  = null;
+    <!-- Indicador flutuante quando rodando e minimizado -->
+    <div id="cronoIndicador" style="display:none; position:fixed;
+       bottom:88px; right:24px; z-index:9998; background:#27AE60;
+       color:white; border-radius:12px; padding:4px 10px;
+       font-size:0.75rem; font-weight:bold;
+       box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+        ▶ <span id="cronoIndicadorTempo">00:00:00</span>
+    </div>
 
+    <script>
+        // ── Chaves do localStorage ───────────────────────────────────────
+        const CRONO_KEY = {
+          RODANDO:    'crono_rodando',
+          SEGUNDOS:   'crono_segundos',
+          INICIO:     'crono_inicio_timestamp',
+          MATERIA_ID: 'crono_materia_id',
+          ASSUNTO:    'crono_assunto',
+          PAUSADO_EM: 'crono_pausado_em',
+          VISIVEL:    'crono_visivel'
+        };
+
+        let cronoIntervalo = null;
+
+        // ── Inicialização — restaura estado ao carregar página ───────────
+        document.addEventListener('DOMContentLoaded', () => {
+          carregarMaterias().then(() => {
+            restaurarEstado();
+          });
+        });
+
+        function restaurarEstado() {
+          const rodando   = localStorage.getItem(CRONO_KEY.RODANDO) === 'true';
+          const visivel   = localStorage.getItem(CRONO_KEY.VISIVEL) === 'true';
+          const materiaId = localStorage.getItem(CRONO_KEY.MATERIA_ID);
+          const assunto   = localStorage.getItem(CRONO_KEY.ASSUNTO);
+
+          // Restaura matéria e assunto
+          if (materiaId) {
+            document.getElementById('cronoMateria').value = materiaId;
+          }
+          if (assunto) {
+            document.getElementById('cronoAssunto').value = assunto;
+          }
+
+          // Calcula segundos acumulados
+          const segundosSalvos = parseInt(
+            localStorage.getItem(CRONO_KEY.SEGUNDOS) || '0');
+          const inicioTs = localStorage.getItem(CRONO_KEY.INICIO);
+
+          let totalSegundos = segundosSalvos;
+          if (rodando && inicioTs) {
+            const agora = Date.now();
+            const decorrido = Math.floor((agora - parseInt(inicioTs)) / 1000);
+            totalSegundos = segundosSalvos + decorrido;
+          }
+
+          atualizarDisplayComValor(totalSegundos);
+
+          if (rodando) {
+            // Retoma o cronômetro
+            document.getElementById('cronoDisplay').style.color = '#27AE60';
+            document.getElementById('cronoStatus').style.display = 'block';
+            setBtn('btnIniciar', true);
+            setBtn('btnPausar',  false);
+            setBtn('btnParar',   false);
+
+            cronoIntervalo = setInterval(() => {
+              const ini = parseInt(
+                localStorage.getItem(CRONO_KEY.INICIO) || '0');
+              const base = parseInt(
+                localStorage.getItem(CRONO_KEY.SEGUNDOS) || '0');
+              const agora = Date.now();
+              const total = base + Math.floor((agora - ini) / 1000);
+              atualizarDisplayComValor(total);
+              atualizarIndicador(total, true);
+            }, 1000);
+
+            // Mostra indicador se widget fechado
+            if (!visivel) {
+              document.getElementById('cronoIndicador').style.display = 'block';
+            }
+          }
+
+          // Restaura visibilidade
+          if (visivel) {
+            document.getElementById('cronometro-widget').style.display = 'block';
+            document.getElementById('cronometro-mini').style.display   = 'none';
+            document.getElementById('cronoIndicador').style.display    = 'none';
+          }
+        }
+
+        // ── Toggle do widget ─────────────────────────────────────────────
         function toggleCronometro() {
-          const widget = document.getElementById('cronometro-widget');
-          const aberto = widget.style.display !== 'none';
+          const widget  = document.getElementById('cronometro-widget');
+          const aberto  = widget.style.display !== 'none';
           if (aberto) {
             widget.style.display = 'none';
+            localStorage.setItem(CRONO_KEY.VISIVEL, 'false');
+            // Mostra indicador se estiver rodando
+            const rodando = localStorage.getItem(CRONO_KEY.RODANDO) === 'true';
+            if (rodando) {
+              document.getElementById('cronoIndicador').style.display = 'block';
+            }
           } else {
             widget.style.display = 'block';
-            document.getElementById('cronometro-mini').style.display = 'none';
-            carregarMaterias();
+            document.getElementById('cronometro-mini').style.display   = 'none';
+            document.getElementById('cronoIndicador').style.display    = 'none';
+            localStorage.setItem(CRONO_KEY.VISIVEL, 'true');
           }
         }
 
         function minimizarCrono() {
           document.getElementById('cronometro-widget').style.display = 'none';
-          const mini = document.getElementById('cronometro-mini');
-          mini.style.display = 'flex';
+          document.getElementById('cronometro-mini').style.display   = 'flex';
+          localStorage.setItem(CRONO_KEY.VISIVEL, 'false');
+          const rodando = localStorage.getItem(CRONO_KEY.RODANDO) === 'true';
+          if (rodando) {
+            document.getElementById('cronoIndicador').style.display = 'block';
+          }
         }
 
         function maximizarCrono() {
           document.getElementById('cronometro-widget').style.display = 'block';
           document.getElementById('cronometro-mini').style.display   = 'none';
+          document.getElementById('cronoIndicador').style.display    = 'none';
+          localStorage.setItem(CRONO_KEY.VISIVEL, 'true');
         }
 
+        // ── Carregar matérias ────────────────────────────────────────────
         function carregarMaterias() {
-          fetch('/api/materias')
+          return fetch('/api/materias')
             .then(res => res.json())
             .then(data => {
               const sel = document.getElementById('cronoMateria');
+              const valorAtual = sel.value;
               sel.innerHTML =
                 '<option value="">Selecione a matéria...</option>';
               data.forEach(m => {
@@ -182,47 +291,94 @@
                 opt.textContent = m.nome;
                 sel.appendChild(opt);
               });
+              if (valorAtual) sel.value = valorAtual;
             })
             .catch(() => {});
         }
 
+        // ── Controles ────────────────────────────────────────────────────
         function iniciarCrono() {
-          if (cronoRodando) return;
-          cronoRodando  = true;
-          cronoIniciouEm = new Date();
+          const rodando = localStorage.getItem(CRONO_KEY.RODANDO) === 'true';
+          if (rodando) return;
+
+          // Salva timestamp de início e marca como rodando
+          const segundosBase = parseInt(
+            localStorage.getItem(CRONO_KEY.SEGUNDOS) || '0');
+          localStorage.setItem(CRONO_KEY.RODANDO,  'true');
+          localStorage.setItem(CRONO_KEY.INICIO,   Date.now().toString());
+          localStorage.setItem(CRONO_KEY.SEGUNDOS, segundosBase.toString());
+
+          // Salva matéria e assunto
+          const materiaId = document.getElementById('cronoMateria').value;
+          const assunto   = document.getElementById('cronoAssunto').value;
+          if (materiaId) localStorage.setItem(CRONO_KEY.MATERIA_ID, materiaId);
+          if (assunto)   localStorage.setItem(CRONO_KEY.ASSUNTO, assunto);
 
           document.getElementById('cronoDisplay').style.color = '#27AE60';
+          document.getElementById('cronoStatus').style.display = 'block';
+          document.getElementById('cronoResultado').style.display = 'none';
+
           setBtn('btnIniciar', true);
           setBtn('btnPausar',  false);
           setBtn('btnParar',   false);
-          document.getElementById('cronoResultado').style.display = 'none';
 
           cronoIntervalo = setInterval(() => {
-            cronoSegundos++;
-            document.getElementById('cronoDisplay').textContent =
-              formatarTempo(cronoSegundos);
+            const ini   = parseInt(localStorage.getItem(CRONO_KEY.INICIO));
+            const base  = parseInt(localStorage.getItem(CRONO_KEY.SEGUNDOS));
+            const total = base + Math.floor((Date.now() - ini) / 1000);
+            atualizarDisplayComValor(total);
+            atualizarIndicador(total, true);
           }, 1000);
         }
 
         function pausarCrono() {
-          if (!cronoRodando) return;
-          cronoRodando = false;
+          const rodando = localStorage.getItem(CRONO_KEY.RODANDO) === 'true';
+          if (!rodando) return;
+
           clearInterval(cronoIntervalo);
+
+          // Salva os segundos acumulados até agora
+          const ini   = parseInt(localStorage.getItem(CRONO_KEY.INICIO));
+          const base  = parseInt(localStorage.getItem(CRONO_KEY.SEGUNDOS));
+          const total = base + Math.floor((Date.now() - ini) / 1000);
+
+          localStorage.setItem(CRONO_KEY.RODANDO,  'false');
+          localStorage.setItem(CRONO_KEY.SEGUNDOS, total.toString());
+
           document.getElementById('cronoDisplay').style.color = '#E67E22';
+          document.getElementById('cronoStatus').style.display = 'none';
+          atualizarIndicador(total, false);
+
           setBtn('btnIniciar', false);
           setBtn('btnPausar',  true);
         }
 
         function pararCrono() {
           clearInterval(cronoIntervalo);
-          cronoRodando = false;
+
+          const ini   = parseInt(
+            localStorage.getItem(CRONO_KEY.INICIO) || Date.now().toString());
+          const base  = parseInt(
+            localStorage.getItem(CRONO_KEY.SEGUNDOS) || '0');
+          const rodando = localStorage.getItem(CRONO_KEY.RODANDO) === 'true';
+          const total = rodando
+                ? base + Math.floor((Date.now() - ini) / 1000)
+                : base;
+
+          localStorage.setItem(CRONO_KEY.RODANDO,  'false');
+          localStorage.setItem(CRONO_KEY.SEGUNDOS, total.toString());
 
           document.getElementById('cronoDisplay').style.color = '#1B3A6B';
+          document.getElementById('cronoStatus').style.display = 'none';
           document.getElementById('tempoRegistrado').textContent =
-            formatarTempo(cronoSegundos);
+            formatarTempo(total);
           document.getElementById('cronoResultado').style.display = 'block';
           document.getElementById('cronoSalvoMsg').style.display  = 'none';
-          document.getElementById('btnSalvarRegistro').style.display = 'inline-block';
+          document.getElementById('btnSalvarRegistro').style.display =
+            'inline-block';
+
+          atualizarIndicador(total, false);
+          document.getElementById('cronoIndicador').style.display = 'none';
 
           setBtn('btnIniciar', false);
           setBtn('btnPausar',  true);
@@ -231,24 +387,32 @@
 
         function resetarCrono() {
           clearInterval(cronoIntervalo);
-          cronoRodando  = false;
-          cronoSegundos = 0;
+
+          // Limpa localStorage
+          Object.values(CRONO_KEY).forEach(k => localStorage.removeItem(k));
 
           document.getElementById('cronoDisplay').textContent = '00:00:00';
           document.getElementById('cronoDisplay').style.color = '#1B3A6B';
+          document.getElementById('cronoStatus').style.display  = 'none';
           document.getElementById('cronoResultado').style.display = 'none';
           document.getElementById('cronoAssunto').value = '';
+          document.getElementById('cronoMateria').value = '';
+          document.getElementById('cronoIndicador').style.display = 'none';
 
           setBtn('btnIniciar', false);
           setBtn('btnPausar',  true);
           setBtn('btnParar',   true);
         }
 
-        // Salva no Registro Diário via API
+        // ── Salvar registro ──────────────────────────────────────────────
         function salvarRegistro() {
-          const materiaId = document.getElementById('cronoMateria').value;
-          const assunto   = document.getElementById('cronoAssunto').value;
-          const minutos   = Math.ceil(cronoSegundos / 60);
+          const materiaId = document.getElementById('cronoMateria').value ||
+                            localStorage.getItem(CRONO_KEY.MATERIA_ID);
+          const assunto   = document.getElementById('cronoAssunto').value ||
+                            localStorage.getItem(CRONO_KEY.ASSUNTO);
+          const segundos  = parseInt(
+            localStorage.getItem(CRONO_KEY.SEGUNDOS) || '0');
+          const minutos   = Math.max(1, Math.ceil(segundos / 60));
 
           if (!materiaId) {
             alert('⚠️ Selecione a matéria antes de salvar!');
@@ -259,19 +423,18 @@
             return;
           }
 
-          // Data de hoje no formato yyyy-MM-dd
           const hoje = new Date().toISOString().split('T')[0];
 
           const dados = {
-            data:           hoje,
-            materiaId:      parseInt(materiaId),
-            assunto:        assunto,
-            tipo:           'TEORIA',
-            tempoPlanejado: minutos,
-            tempoReal:      minutos,
+            data:               hoje,
+            materiaId:          parseInt(materiaId),
+            assunto:            assunto,
+            tipo:               'TEORIA',
+            tempoPlanejado:     minutos,
+            tempoReal:          minutos,
             questoesResolvidas: 0,
-            acertos:        0,
-            observacoes:    'Registrado pelo cronômetro'
+            acertos:            0,
+            observacoes:        'Registrado pelo cronômetro'
           };
 
           fetch('/api/registro', {
@@ -283,11 +446,32 @@
             if (res.ok) {
               document.getElementById('cronoSalvoMsg').style.display = 'block';
               document.getElementById('btnSalvarRegistro').style.display = 'none';
+              // Limpa localStorage após salvar
+              Object.values(CRONO_KEY).forEach(k => localStorage.removeItem(k));
             } else {
               alert('❌ Erro ao salvar. Tente novamente.');
             }
           })
           .catch(() => alert('❌ Erro ao salvar. Tente novamente.'));
+        }
+
+        // ── Helpers ──────────────────────────────────────────────────────
+        function atualizarDisplayComValor(segundos) {
+          document.getElementById('cronoDisplay').textContent =
+            formatarTempo(segundos);
+        }
+
+        function atualizarIndicador(segundos, rodando) {
+          const ind = document.getElementById('cronoIndicador');
+          document.getElementById('cronoIndicadorTempo').textContent =
+            formatarTempo(segundos);
+          const widget  = document.getElementById('cronometro-widget');
+          const aberto  = widget.style.display !== 'none';
+          if (rodando && !aberto) {
+            ind.style.display = 'block';
+          } else {
+            ind.style.display = 'none';
+          }
         }
 
         function setBtn(id, desabilitado) {
@@ -305,6 +489,18 @@
                  String(m).padStart(2,'0') + ':' +
                  String(seg).padStart(2,'0');
         }
+
+        // Salva matéria/assunto quando mudar
+        document.addEventListener('DOMContentLoaded', () => {
+          document.getElementById('cronoMateria')
+            .addEventListener('change', e => {
+              localStorage.setItem(CRONO_KEY.MATERIA_ID, e.target.value);
+            });
+          document.getElementById('cronoAssunto')
+            .addEventListener('input', e => {
+              localStorage.setItem(CRONO_KEY.ASSUNTO, e.target.value);
+            });
+        });
     </script>
 
 </div>
